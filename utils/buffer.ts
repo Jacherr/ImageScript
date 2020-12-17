@@ -1,5 +1,5 @@
-module.exports = class Buffer {
-    static concat(...arrays) {
+export class Buffer {
+    static concat(...arrays: Uint8Array[]) {
         const array = new Uint8Array(
             arrays.reduce((length, array) => length + array.length, 0)
         );

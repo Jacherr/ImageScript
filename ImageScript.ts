@@ -1,21 +1,40 @@
-const png = require('./utils/png');
+import png from './utils/png';
 const fontlib = require('./utils/wasm/font');
 const svglib = require('./utils/wasm/svg');
 const jpeglib = require('./utils/wasm/jpeg');
 const tifflib = require('./utils/wasm/tiff');
 const giflib = require('./utils/wasm/gif');
 
+interface RGBA {
+    r: number
+    g: number
+    b: number
+    a: number
+}
+
+interface Gradient {
+    min: number
+    max: number
+    gradient: (position: number) => number
+}
+
 /**
  * Represents an image; provides utility functions
  */
 class Image {
+    private __height__: number
+    private __width__: number
+    private __buffer__: ArrayBuffer
+    private __view__: DataView
+    private __u32__: Uint32Array
+    public bitmap: Uint8ClampedArray
     /**
      * Creates a new image with the given dimensions
      * @param {number} width
      * @param {number} height
      * @returns {Image}
      */
-    constructor(width, height) {
+    constructor(width: number, height: number) {
         width = ~~width;
         height = ~~height;
 
@@ -50,7 +69,7 @@ class Image {
     }
 
     /** @private */
-    static new(width, height) {
+    static new(width: number, height: number) {
         return new this(width, height);
     }
 
@@ -106,7 +125,7 @@ class Image {
      * @param {number} a alpha (0..255)
      * @returns {number} RGBA value
      */
-    static rgbaToColor(r, g, b, a) {
+    static rgbaToColor(r: number, g: number, b: number, a: number) {
         return (((r & 0xff) << 24) | ((g & 0xff) << 16) | ((b & 0xff) << 8) | (a & 0xff)) >>> 0;
     }
 
@@ -117,7 +136,7 @@ class Image {
      * @param {number} b blue (0..255)
      * @returns {number} RGBA value
      */
-    static rgbToColor(r, g, b) {
+    static rgbToColor(r: number, g: number, b: number) {
         return Image.rgbaToColor(r, g, b, 0xff);
     }
 
@@ -129,7 +148,7 @@ class Image {
      * @param {number} a opacity (0..1)
      * @returns {number} color
      */
-    static hslaToColor(h, s, l, a) {
+    static hslaToColor(h: number, s: number, l: number, a: number) {
         h %= 1;
         s = Math.min(1, Math.max(0, s));
         l = Math.min(1, Math.max(0, l));
@@ -140,7 +159,7 @@ class Image {
         if (s === 0) {
             r = g = b = l;
         } else {
-            const hue2rgb = (p, q, t) => {
+            const hue2rgb = (p: number, q: number, t: number) => {
                 if (t < 0) t += 1;
                 if (t > 1) t -= 1;
                 if (t < 1 / 6) return p + (q - p) * 6 * t;
@@ -167,7 +186,7 @@ class Image {
      * @param {number} l lightness (0..1)
      * @returns {number} color
      */
-    static hslToColor(h, s, l) {
+    static hslToColor(h: number, s: number, l: number) {
         return Image.hslaToColor(h, s, l, 1);
     }
 
@@ -179,7 +198,7 @@ class Image {
      * @param a {number} (0..255)
      * @returns {(number)[]} The HSLA values ([H, S, L, A])
      */
-    static rgbaToHSLA(r, g, b, a) {
+    static rgbaToHSLA(r: number, g: number, b: number, a: number): [number, number, number, number] {
         r /= 255;
         g /= 255;
         b /= 255;
@@ -204,10 +223,12 @@ class Image {
                     break;
             }
 
+            // ??? object is possibly undefined ???
+            //@ts-ignore
             h /= 6;
         }
 
-        return [h, s, l, a / 255];
+        return [h as number, s, l, a / 255];
     }
 
     /**
@@ -215,7 +236,7 @@ class Image {
      * @param {number} color The color value to convert
      * @returns {number[]} The RGBA values ([R, G, B, A])
      */
-    static colorToRGBA(color) {
+    static colorToRGBA(color: number) {
         return [(color >> 24) & 0xff, (color >> 16) & 0xff, (color >> 8) & 0xff, color & 0xff];
     }
 
@@ -224,7 +245,7 @@ class Image {
      * @param {number} color The color value to convert
      * @returns {number[]} The RGB values ([R, G, B])
      */
-    static colorToRGB(color) {
+    static colorToRGB(color: number) {
         return Image.colorToRGBA(color).slice(0, 3);
     }
 
@@ -234,7 +255,7 @@ class Image {
      * @param {number} y
      * @returns {number} The color value
      */
-    getPixelAt(x, y) {
+    getPixelAt(x: number, y: number) {
         this.__check_boundaries__(x, y);
         return this.__view__.getUint32((~~y - 1) * this.width + (~~x - 1), false);
     }
@@ -245,7 +266,7 @@ class Image {
      * @param {number} y
      * @returns {Uint8ClampedArray} The RGBA value
      */
-    getRGBAAt(x, y) {
+    getRGBAAt(x: number, y: number) {
         this.__check_boundaries__(x, y);
         const idx = ((~~y - 1) * this.width + (~~x - 1)) * 4;
         return this.bitmap.subarray(idx, idx + 4);
@@ -257,7 +278,7 @@ class Image {
      * @param {number} y
      * @param {number} pixelColor
      */
-    setPixelAt(x, y, pixelColor) {
+    setPixelAt(x: number, y: number, pixelColor: number) {
         x = ~~x;
         y = ~~y;
         this.__check_boundaries__(x, y);
@@ -271,7 +292,7 @@ class Image {
      * @param {number} y
      * @param {number} pixelColor
      */
-    __set_pixel__(x, y, pixelColor) {
+    __set_pixel__(x: number, y: number, pixelColor: number) {
         this.__view__.setUint32(((y - 1) * this.width + (x - 1)) * 4, pixelColor, false);
     }
 
@@ -280,7 +301,7 @@ class Image {
      * @param {number} x
      * @param {number} y
      */
-    __check_boundaries__(x, y) {
+    __check_boundaries__(x: number, y: number) {
         if (isNaN(x)) throw new TypeError(`Invalid pixel coordinates (x=${x})`);
         if (isNaN(y)) throw new TypeError(`Invalid pixel coordinates (y=${y})`);
         if (x < 1)
@@ -312,16 +333,16 @@ class Image {
      * @param {number|colorFunction} color
      * @returns {Image}
      */
-    fill(color) {
+    fill(color: ((x: number, y: number) => number) | number) {
         const type = typeof color;
         if (type !== 'function') {
-            this.__view__.setUint32(0, color, false);
+            this.__view__.setUint32(0, color as number, false);
             this.__u32__.fill(this.__u32__[0]);
         } else {
             let offset = 0;
             for (let y = 1; y <= this.height; y++) {
                 for (let x = 1; x <= this.width; x++) {
-                    this.__view__.setUint32(offset, color(x, y), false);
+                    this.__view__.setUint32(offset, (color as Function)(x, y), false);
                     offset += 4;
                 }
             }
@@ -362,7 +383,7 @@ class Image {
      * @param {string} [mode=Image.RESIZE_NEAREST_NEIGHBOR] The resizing mode to use
      * @returns {Image}
      */
-    scale(factor, mode = Image.RESIZE_NEAREST_NEIGHBOR) {
+    scale(factor: number, mode = Image.RESIZE_NEAREST_NEIGHBOR) {
         if (factor === 1) return this;
         return this.resize(this.width * factor, this.height * factor, mode);
     }
@@ -375,7 +396,7 @@ class Image {
      * @param {string} [mode=Image.RESIZE_NEAREST_NEIGHBOR] The resizing mode to use
      * @returns {Image} The resized image
      */
-    resize(width, height, mode = Image.RESIZE_NEAREST_NEIGHBOR) {
+    resize(width: number, height: number, mode = Image.RESIZE_NEAREST_NEIGHBOR) {
         if (width === Image.RESIZE_AUTO && height === Image.RESIZE_AUTO) throw new Error('RESIZE_AUTO can only be used for either width or height, not for both');
         else if (width === Image.RESIZE_AUTO) width = this.width / this.height * height;
         else if (height === Image.RESIZE_AUTO) height = this.height / this.width * width;
@@ -397,7 +418,8 @@ class Image {
      * @param {number} width The new width
      * @param {number} height The new height
      */
-    __resize_nearest_neighbor__(width, height) {
+    __resize_nearest_neighbor__(width: number, height: number) {
+        //@ts-ignore
         const image = new this.constructor(width, height);
 
         for (let y = 0; y < height; y++) {
@@ -425,7 +447,7 @@ class Image {
      * @param {number} height The new images height
      * @returns {Image}
      */
-    crop(x, y, width, height) {
+    crop(x: number, y: number, width: number, height: number) {
         if (width > this.width) width = this.width;
         if (height > this.height) height = this.height;
 
@@ -440,10 +462,11 @@ class Image {
      * @returns {Image}
      * @private
      */
-    __crop__(x, y, width, height) {
+    __crop__(x: number, y: number, width: number, height: number) {
         x = ~~x;
         y = ~~y;
 
+        //@ts-ignore
         const image = new this.constructor(width, height);
 
         for (let tY = 0; tY < height; tY++) {
@@ -463,7 +486,7 @@ class Image {
      * @param {number|colorFunction} color The color to fill the box in with
      * @returns {Image}
      */
-    drawBox(x, y, width, height, color) {
+    drawBox(x: number, y: number, width: number, height: number, color: ((x: number, y: number) => number) | number) {
         x -= 1;
         y -= 1;
 
@@ -492,7 +515,7 @@ class Image {
      * @param {number} height
      * @param {number} color
      */
-    __fast_box__(x, y, width, height, color) {
+    __fast_box__(x: number, y: number, width: number, height: number, color: number) {
         if (x < 0) {
             width += x;
             x = 1;
@@ -525,7 +548,7 @@ class Image {
      * @param {number|colorFunction} color
      * @returns {Image}
      */
-    drawCircle(x, y, radius, color) {
+    drawCircle(x: number, y: number, radius: number, color: ((x: number, y: number) => number) | number) {
         const radSquared = radius ** 2;
         for (let currentY = Math.max(1, y - radius); currentY <= Math.min(y + radius, this.height); currentY++) {
             for (let currentX = Math.max(1, x - radius); currentX <= Math.min(x + radius, this.width); currentX++) {
@@ -567,7 +590,7 @@ class Image {
      * @param {boolean} absolute Whether to scale the current opacity (false) or just set the new opacity (true)
      * @returns {Image}
      */
-    opacity(opacity, absolute = false) {
+    opacity(opacity: number, absolute = false) {
         if (isNaN(opacity) || opacity < 0)
             throw new RangeError('Invalid opacity value');
 
@@ -582,7 +605,7 @@ class Image {
      * @param {boolean} absolute Whether to scale the current saturation (false) or just set the new saturation (true)
      * @returns {Image}
      */
-    red(saturation, absolute = false) {
+    red(saturation: number, absolute = false) {
         if (isNaN(saturation) || saturation < 0)
             throw new RangeError('Invalid saturation value');
 
@@ -597,7 +620,7 @@ class Image {
      * @param {boolean} absolute Whether to scale the current saturation (false) or just set the new saturation (true)
      * @returns {Image}
      */
-    green(saturation, absolute = false) {
+    green(saturation: number, absolute = false) {
         if (isNaN(saturation) || saturation < 0)
             throw new RangeError('Invalid saturation value');
 
@@ -612,7 +635,7 @@ class Image {
      * @param {boolean} absolute Whether to scale the current saturation (false) or just set the new saturation (true)
      * @returns {Image}
      */
-    blue(saturation, absolute = false) {
+    blue(saturation: number, absolute = false) {
         if (isNaN(saturation) || saturation < 0)
             throw new RangeError('Invalid saturation value');
 
@@ -627,7 +650,7 @@ class Image {
      * @param {boolean} absolute
      * @param {number} offset
      */
-    __set_channel_value__(value, absolute, offset) {
+    __set_channel_value__(value: number, absolute: boolean, offset: number) {
         for (let i = offset; i < this.bitmap.length; i += 4)
             this.bitmap[i] = value * (absolute ? 255 : this.bitmap[i]);
     }
@@ -638,12 +661,13 @@ class Image {
      * @param {boolean} absolute Whether to scale the current lightness (false) or just set the new lightness (true)
      * @returns {Image}
      */
-    lightness(value, absolute = false) {
+    lightness(value: number, absolute = false) {
         if (isNaN(value) || value < 0)
             throw new RangeError('Invalid lightness value');
 
-        return this.fill((x, y) => {
-            const [h, s, l, a] = Image.rgbaToHSLA(...this.getRGBAAt(x, y));
+        return this.fill((x: number, y: number) => {
+            const [r, g, b, _a] = this.getRGBAAt(x, y);
+            const [h, s, l, a] = Image.rgbaToHSLA(r, g, b, _a);
             return Image.hslaToColor(h, s, value * (absolute ? 1 : l), a);
         });
     }
@@ -654,12 +678,13 @@ class Image {
      * @param {boolean} absolute Whether to scale the current saturation (false) or just set the new saturation (true)
      * @returns {Image}
      */
-    saturation(value, absolute = false) {
+    saturation(value: number, absolute = false) {
         if (isNaN(value) || value < 0)
             throw new RangeError('Invalid saturation value');
 
         return this.fill((x, y) => {
-            const [h, s, l, a] = Image.rgbaToHSLA(...this.getRGBAAt(x, y));
+            const [r, g, b, _a] = this.getRGBAAt(x, y);
+            const [h, s, l, a] = Image.rgbaToHSLA(r, g, b, _a);
             return Image.hslaToColor(h, value * (absolute ? 1 : s), l, a);
         });
     }
@@ -671,7 +696,7 @@ class Image {
      * @param {number} [y=0] The y position to place the image at
      * @returns {Image}
      */
-    composite(source, x = 0, y = 0) {
+    composite(source: Image, x = 0, y = 0) {
         x = ~~x;
         y = ~~y;
 
@@ -704,7 +729,7 @@ class Image {
      * @param {number} bg
      * @returns {number}
      */
-    static __alpha_blend__(fg, bg) {
+    static __alpha_blend__(fg: number, bg: number) {
         const fa = fg & 0xff;
         const alpha = fa + 1;
         const inv_alpha = 256 - fa;
@@ -731,7 +756,8 @@ class Image {
      */
     invertValue() {
         for (const [x, y, color] of this.iterateWithColors()) {
-            const [h, s, l, a] = Image.rgbaToHSLA(...Image.colorToRGBA(color));
+            const [r, g, b, _a] = Image.colorToRGBA(color);
+            const [h, s, l, a] = Image.rgbaToHSLA(r, g, b, _a);
             this.__set_pixel__(x, y, Image.hslaToColor(h, s, 1 - l, a));
         }
 
@@ -744,7 +770,8 @@ class Image {
      */
     invertSaturation() {
         for (const [x, y, color] of this.iterateWithColors()) {
-            const [h, s, l, a] = Image.rgbaToHSLA(...Image.colorToRGBA(color));
+            const [r, g, b, _a] = Image.colorToRGBA(color);
+            const [h, s, l, a] = Image.rgbaToHSLA(r, g, b, _a);
             this.__set_pixel__(x, y, Image.hslaToColor(h, 1 - s, l, a));
         }
 
@@ -757,7 +784,8 @@ class Image {
      */
     invertHue() {
         for (const [x, y, color] of this.iterateWithColors()) {
-            const [h, s, l, a] = Image.rgbaToHSLA(...Image.colorToRGBA(color));
+            const [r, g, b, _a] = Image.colorToRGBA(color);
+            const [h, s, l, a] = Image.rgbaToHSLA(r, g, b, _a);
             this.__set_pixel__(x, y, Image.hslaToColor(1 - h, s, l, a));
         }
 
@@ -768,9 +796,10 @@ class Image {
      * Shifts the images hue
      * @param {number} degrees How many degrees to shift the hue by
      */
-    hueShift(degrees) {
+    hueShift(degrees: number) {
         for (const [x, y, color] of this.iterateWithColors()) {
-            const [h, s, l, a] = Image.rgbaToHSLA(...Image.colorToRGBA(color));
+            const [r, g, b, _a] = Image.colorToRGBA(color);
+            const [h, s, l, a] = Image.rgbaToHSLA(r, g, b, _a);
             this.__set_pixel__(x, y, Image.hslaToColor(h + degrees / 360, s, l, a));
         }
 
@@ -791,7 +820,8 @@ class Image {
             divisor += rgba[3] / 255;
         }
 
-        return Image.rgbaToColor(...colorAvg.map(v => v / divisor), 0xff);
+        const [r, g, b] = colorAvg.map(v => v / divisor);
+        return Image.rgbaToColor(r, g, b, 0xff);
     }
 
     /**
@@ -801,11 +831,12 @@ class Image {
      * @param {number} [bwThreshold=0xf] The black/white threshold (0-64)
      * @return {number} The images dominant color
      */
-    dominantColor(ignoreBlack = true, ignoreWhite = true, bwThreshold = 0xf) {
+    dominantColor(ignoreBlack = true, ignoreWhite = true, bwThreshold = 0xf): number {
         const colorCounts = new Array(0x3ffff);
         for (let i = 0; i < this.bitmap.length; i += 4) {
             const color = this.__view__.getUint32(i, false);
-            const [h, s, l] = Image.rgbaToHSLA(...Image.colorToRGBA(color)).map(v => (~~(v * 0x3f)));
+            const [r, g, b, _a] = Image.colorToRGBA(color);
+            const [h, s, l] = Image.rgbaToHSLA(r, g, b, _a).map(v => (~~(v * 0x3f)));
             if (ignoreBlack && l < bwThreshold) continue;
             if (ignoreWhite && l > 0x3f - bwThreshold) continue;
             const key = h << 12 | s << 6 | l;
@@ -835,7 +866,7 @@ class Image {
      * @param {number} angle The angle to rotate the image for (in degrees)
      * @param {boolean} resize Whether to resize the image so it fits all pixels or just ignore outlying pixels
      */
-    rotate(angle, resize = true) {
+    rotate(angle: number, resize = true) {
         if (angle % 360 === 0) return this;
         if (angle % 180 === 0) return this.__rotate_180__();
 
@@ -895,7 +926,7 @@ class Image {
      * @param {number} y1
      * @private
      */
-    static __interpolate__(src, out, x0, y0, x1, y1) {
+    static __interpolate__(src: Image, out: Image, x0: number, y0: number, x1: number, y1: number) {
         const x2 = ~~x1;
         const y2 = ~~y1;
         const xq = x1 - x2;
@@ -921,7 +952,7 @@ class Image {
     }
 
     /** @private */
-    static __pawn__(point0, point1, weight, ref, src) {
+    static __pawn__(point0: number, point1: number, weight: number, ref: RGBA, src: Image) {
         if (
             point0 > 0
             && point1 > 0
@@ -945,7 +976,7 @@ class Image {
      * @param {Image} image
      * @returns {Image}
      */
-    __apply__(image) {
+    __apply__(image: Image) {
         this.__width__ = image.__width__;
         this.__height__ = image.__height__;
         this.__view__ = image.__view__;
@@ -960,7 +991,8 @@ class Image {
      * @param {Object<number, number>} colors The gradient points to use (e.g. `{0: 0xff0000ff, 1: 0x00ff00ff}`)
      * @return {(function(number): number)} The gradient generator. The function argument is the position in the gradient (0..1).
      */
-    static gradient(colors) {
+    static gradient(colors: number[]) {
+        //@ts-ignore
         const entries = Object.entries(colors).sort((a, b) => a[0] - b[0]);
         const positions = entries.map(e => parseFloat(e[0]));
         const values = entries.map(e => e[1]);
@@ -970,7 +1002,7 @@ class Image {
             return () => values[0];
         } else if (positions.length === 2) {
             const gradient = this.__gradient__(values[0], values[1]);
-            return position => {
+            return (position: number) => {
                 if (position <= positions[0]) return values[0];
                 if (position >= positions[1]) return values[1];
                 return gradient((position - positions[0]) / (positions[1] - positions[0]));
@@ -979,7 +1011,7 @@ class Image {
 
         const minDef = Math.min(...positions);
         const maxDef = Math.max(...positions);
-        let gradients = [];
+        let gradients: Gradient[] = [];
 
         for (let i = 0; i < positions.length; i++) {
             let minPos = positions[i - 1];
@@ -996,7 +1028,7 @@ class Image {
             gradients.push({min: minPos, max: maxPos, gradient});
         }
 
-        return position => {
+        return (position: number) => {
             if (position <= minDef) return gradients[0].gradient(0);
             if (position >= maxDef) return gradients[gradients.length - 1].gradient(1);
 
@@ -1052,7 +1084,7 @@ class Image {
     /**
      * @private
      */
-    static __gradient__(startColor, endColor) {
+    static __gradient__(startColor: number, endColor: number) {
         const sr = startColor >>> 24;
         const sg = startColor >> 16 & 0xff;
         const sb = startColor >> 8 & 0xff;
@@ -1062,7 +1094,7 @@ class Image {
         const eb = (endColor >> 8 & 0xff) - sb;
         const ea = (endColor & 0xff) - sa;
 
-        return position => {
+        return (position: number) => {
             const r = sr + position * er;
             const g = sg + position * eg;
             const b = sb + position * eb;
@@ -1077,6 +1109,7 @@ class Image {
      * @return {Promise<Uint8Array>} The encoded data
      */
     async encode(compression = 1) {
+        //@ts-ignore
         return await png.encode(this.bitmap, {width: this.width, height: this.height, level: compression, channels: 4});
     }
 
@@ -1087,6 +1120,7 @@ class Image {
      */
     async encodeJPEG(quality = 90) {
         quality = Math.max(1, Math.min(100, quality));
+        //@ts-ignore
         const jpegCanvas = new this.constructor(this.width, this.height);
         jpegCanvas.fill(0xff);
         jpegCanvas.composite(this);
@@ -1098,7 +1132,7 @@ class Image {
      * @param {Buffer|Uint8Array} data The binary data to decode
      * @return {Promise<Image>} The decoded image
      */
-    static async decode(data) {
+    static async decode(data: Uint8Array) {
         let image;
 
         let view;
@@ -1148,7 +1182,8 @@ class Image {
             const buffer = tifflib.buffer(0);
             tifflib.free(0);
 
-            image = new this(...meta);
+            const [w, h] = meta;
+            image = new this(w, h);
             image.bitmap.set(buffer);
         } else throw new Error('Unsupported image type');
 
@@ -1186,7 +1221,7 @@ class Image {
      * @param {number} mode The SVG resizing mode to use (one of {@link SVG_MODE_SCALE}, {@link SVG_MODE_WIDTH}, {@link SVG_MODE_HEIGHT})
      * @return {Promise<Image>} The rendered SVG graphic
      */
-    static async renderSVG(svg, size = 1, mode = this.SVG_MODE_SCALE) {
+    static async renderSVG(svg: string | number, size = 1, mode = this.SVG_MODE_SCALE) {
         if (![this.SVG_MODE_WIDTH, this.SVG_MODE_HEIGHT, this.SVG_MODE_SCALE].includes(mode))
             throw new Error('Invalid SVG scaling mode');
 
@@ -1202,7 +1237,8 @@ class Image {
         if (status === 1) throw new Error('Failed parsing SVG');
         if (status === 2) throw new Error('Failed rendering SVG');
         const meta = svglib.meta(0);
-        const image = new this(...meta);
+        const [w, h] = meta;
+        const image = new this(w, h);
         image.bitmap.set(svglib.buffer(0));
         svglib.free(0);
         return image;
@@ -1234,7 +1270,7 @@ class Image {
      * @param {boolean} wrapStyle Whether to break at words ({@link WRAP_STYLE_WORD}) or at characters ({@link WRAP_STYLE_CHAR})
      * @return {Promise<Image>} The rendered text
      */
-    static async renderText(font, scale, text, color = 0xffffffff, wrapWidth = Infinity, wrapStyle = this.WRAP_STYLE_WORD) {
+    static async renderText(font: string, scale: number, text: string, color = 0xffffffff, wrapWidth = Infinity, wrapStyle = this.WRAP_STYLE_WORD) {
         const [r, g, b, a] = Image.colorToRGBA(color);
         await fontlib.load(0, font, scale);
         fontlib.render(0, 0, scale, r, g, b, text, wrapWidth === Infinity ? null : wrapWidth, wrapStyle);
@@ -1255,6 +1291,7 @@ class Image {
  * @extends Image
  */
 class Frame extends Image {
+    public duration: number
     /**
      * Creates a new, blank frame
      * @param {number} width
@@ -1262,7 +1299,7 @@ class Frame extends Image {
      * @param {number} [duration = 100] The frames duration (in ms)
      * @return {Frame}
      */
-    constructor(width, height, duration = 100) {
+    constructor(width: number, height: number, duration = 100) {
         if (isNaN(duration) || duration < 0)
             throw new RangeError('Invalid frame duration');
 
@@ -1280,7 +1317,7 @@ class Frame extends Image {
      * @param {number} [duration = 100] The frames duration (in ms)
      * @return {Frame}
      */
-    static from(image, duration) {
+    static from(image: Image, duration: number) {
         if (!(image instanceof Image))
             throw new TypeError('Invalid image passed');
         const frame = new Frame(image.width, image.height, duration);
@@ -1294,14 +1331,17 @@ class Frame extends Image {
  * Represents a GIF image as an array of frames
  * @extends Array<Frame>
  */
-class GIF extends Array {
+class GIF extends Array<Frame> {
+    readonly width: number
+    readonly height: number
+    readonly loopCount: number
     /**
      * Creates a new GIF image.
      * @param {Frame[]} frames The frames to create the GIF from
      * @param {number} [loopCount=0] How often to loop the GIF for (-1 = unlimited)
      * @property {number} loopCount How often the GIF will loop for
      */
-    constructor(frames, loopCount = -1) {
+    constructor(frames: Frame[], loopCount = -1) {
         super(...frames);
 
         this.width = frames[0].width;
@@ -1342,6 +1382,7 @@ class GIF extends Array {
         const encoder = await giflib.GIFEncoder.initialize(this.width, this.height, this.loopCount);
         for (const frame of this) {
             if (!(frame instanceof Frame)) throw new Error('GIF contains invalid frames');
+            //@ts-ignore
             encoder.add(~~(frame.duration / 10), quality, frame.bitmap);
         }
 
@@ -1351,4 +1392,4 @@ class GIF extends Array {
     }
 }
 
-module.exports = {Image, GIF, Frame};
+export {Image, GIF, Frame};

@@ -1,7 +1,15 @@
 /* global SharedArrayBuffer */
-const crc32 = require('./crc32.js');
-const Buffer = require('./buffer');
-const {compress, decompress} = require('./wasm/zlib.js');
+import { crc32 } from './crc32';
+import { Buffer } from './buffer';
+const { compress, decompress } = require('./wasm/zlib.js');
+
+interface EncodeOptions {
+    width: number
+    height: number
+    channels: number
+    depth?: number
+    level?: number
+}
 
 const __IHDR__ = new Uint8Array([73, 72, 68, 82]);
 const __IDAT__ = new Uint8Array([73, 68, 65, 84]);
@@ -25,8 +33,8 @@ const channels_to_color_type = {
     4: color_types.TRUECOLOR_ALPHA
 };
 
-module.exports = {
-    async encode(data, {width, height, channels, depth = 8, level = 0}) {
+export default {
+    async encode(data: Uint8Array, {width, height, channels, depth = 8, level = 0}: EncodeOptions) {
         let offset = 0;
         let tmp_offset = 0;
         const row_length = width * channels;
@@ -51,6 +59,7 @@ module.exports = {
         array.set(__IDAT__, 37);
         array.set(compressed, 41);
         array.set(__IEND__, 49 + compressed.length);
+        //@ts-ignore
         array[25] = channels_to_color_type[channels];
 
         const view = new DataView(array.buffer);
@@ -66,13 +75,14 @@ module.exports = {
 
         return array;
     },
-    async decode(array) {
+    async decode(array: Uint8Array) {
         let view = new DataView(array.buffer, array.byteOffset, array.byteLength);
 
         const width = view.getUint32(16);
         const height = view.getUint32(20);
         const bpc = array[24];
         const pixel_type = array[25];
+        //@ts-ignore
         let channels = ({3: 1, 0: 1, 4: 2, 2: 3, 6: 4})[pixel_type];
         const bytespp = channels * bpc / 8;
 
@@ -85,7 +95,7 @@ module.exports = {
         let c_offset = 33;
         const chunks = [];
 
-        let palette;
+        let palette: Uint32Array = new Uint32Array();
         if (array[25] === 3)
             palette = new Uint32Array(2 ** bpc);
 
@@ -112,7 +122,7 @@ module.exports = {
 
             if (0 === filter) pixels.set(slice, p_offset);
             else if (1 === filter) this.filter_1(slice, pixels, p_offset, bytespp, row_length);
-            else if (2 === filter) this.filter_2(slice, pixels, p_offset, bytespp, row_length);
+            else if (2 === filter) this.filter_2(slice, pixels, p_offset, row_length);
             else if (3 === filter) this.filter_3(slice, pixels, p_offset, bytespp, row_length);
             else if (4 === filter) this.filter_4(slice, pixels, p_offset, bytespp, row_length);
 
@@ -161,13 +171,13 @@ module.exports = {
         return {width, height, pixels};
     },
 
-    filter_1(slice, pixels, p_offset, bytespp, row_length) {
+    filter_1(slice: Uint8Array, pixels: Uint8Array, p_offset: number, bytespp: number, row_length: number) {
         let i = 0;
         while (i < bytespp) pixels[i + p_offset] = slice[i++];
         while (i < row_length) pixels[i + p_offset] = slice[i] + pixels[i++ + p_offset - bytespp];
     },
 
-    filter_2(slice, pixels, p_offset, bytespp, row_length) {
+    filter_2(slice: Uint8Array, pixels: Uint8Array, p_offset: number, row_length: number) {
         if (0 === p_offset) pixels.set(slice, p_offset);
         else {
             let i = 0;
@@ -175,7 +185,7 @@ module.exports = {
         }
     },
 
-    filter_3(slice, pixels, p_offset, bytespp, row_length) {
+    filter_3(slice: Uint8Array, pixels: Uint8Array, p_offset: number, bytespp: number, row_length: number) {
         let i = 0;
 
         if (0 === p_offset) {
@@ -187,7 +197,7 @@ module.exports = {
         }
     },
 
-    filter_4(slice, pixels, p_offset, bytespp, row_length) {
+    filter_4(slice: Uint8Array, pixels: Uint8Array, p_offset: number, bytespp: number, row_length: number) {
         let i = 0;
 
         if (0 === p_offset) {
