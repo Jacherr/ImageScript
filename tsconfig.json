@@ -10,6 +10,8 @@
     "esModuleInterop": true,                  
     "forceConsistentCasingInFileNames": true,
     "rootDir": ".",
-    "lib": ["ES2017"]
-  }
+    "lib": ["ES2017"],
+    "allowJs": true
+  },
+  "include": ["./tests", "./utils", "."]
 }
