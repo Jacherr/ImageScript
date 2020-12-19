@@ -11,7 +11,8 @@
     "forceConsistentCasingInFileNames": true,
     "rootDir": ".",
     "lib": ["ES2017"],
-    "allowJs": true
+    "allowJs": true,
+    "declaration": true
   },
   "include": ["./tests", "./utils", "."]
 }
