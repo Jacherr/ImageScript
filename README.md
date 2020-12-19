@@ -1,4 +1,8 @@
 # ImageScript
+
+This fork of ImageScript is in use by my Discord bot Assyst for its ImageScript functionality, including ImageScript tags.<br>
+[Invite it here](https://discord.com/oauth2/authorize?client_id=571661221854707713&scope=bot)
+
 ##### zero-dependency JavaScript image manipulation
 [![Discord Server](https://img.shields.io/discord/691713541262147687.svg?label=Discord&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2&style=for-the-badge)](https://discord.gg/8hPrwAH)
 [![Documentation](https://img.shields.io/badge/Documentationn-informational?style=for-the-badge)](https://oss-is.dreadful.tech/)
