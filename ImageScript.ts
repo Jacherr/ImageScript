@@ -1,3 +1,4 @@
+import fetch from 'node-fetch';
 import png from './utils/png';
 const fontlib = require('./utils/wasm/font');
 const svglib = require('./utils/wasm/svg');
@@ -71,6 +72,15 @@ class Image {
     /** @private */
     static new(width: number, height: number) {
         return new this(width, height);
+    }
+
+    static async load(url: string) {
+        const response = await fetch(url);
+        const contentType = response.headers.get('content-type') as string;
+        if(!(['image/png', 'image/gif']).includes(contentType) || response.status !== 200) throw new Error('URL does not return a valid PNG or GIF image');
+        const buffer = await response.buffer();
+        if(buffer.length > 1024 * 1024 * 512) throw new Error('Image buffer exceeds maximum filesize limit of 512MiB');
+        return this.decode(buffer);
     }
 
     /**
