@@ -1,12 +1,12 @@
 {
   "name": "imagescript",
-  "version": "1.1.14",
+  "version": "1.1.15",
   "description": "zero-dependency javascript image manipulation",
   "main": "dist/ImageScript.js",
   "scripts": {
     "test": "node ./dist/tests/run.js",
     "coverage": "nyc --reporter=html npm test",
-    "postinstall": "build.sh"
+    "postinstall": "./build.sh"
   },
   "repository": {
     "type": "git",
